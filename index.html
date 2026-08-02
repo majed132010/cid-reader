@@ -44,6 +44,22 @@
     background: #fff; color: #1a1a18; outline: none; font-family: inherit;
   }
   .field-row input:focus, .field-row select:focus { border-color: #3b82f6; }
+  .type-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-bottom: 1rem;
+  }
+  .type-btn {
+    padding: 12px 8px; border: 1.5px solid #e0e0dc;
+    border-radius: 12px; background: #f4f4f2;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit; text-align: center;
+    color: #444; transition: all 0.15s; line-height: 1.4;
+  }
+  .type-btn .tb-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+  .type-btn:active { transform: scale(0.97); }
+  .type-btn.active {
+    border-color: #3b82f6; background: #eff6ff; color: #1d4ed8;
+  }
   .custom-type { display: none; margin-bottom: 1rem; }
   .custom-type input {
     width: 100%; padding: 10px 14px; font-size: 14px;
@@ -185,15 +201,20 @@
       <label>🚔 رمز الدورية</label>
       <input type="text" id="patrolCode" placeholder="مثال: د-١٢٣">
     </div>
-    <div class="field-row">
-      <label>📌 نوع الحالة</label>
-      <select id="caseType" onchange="onTypeChange()">
-        <option value="">— اختر —</option>
-        <option value="حادث مروري">🚗 حادث مروري</option>
-        <option value="منطقة عمل">🚧 منطقة عمل</option>
-        <option value="وقوف خاطئ">🚫 وقوف خاطئ</option>
-        <option value="other">✏️ أخرى...</option>
-      </select>
+    <div style="font-size:13px;color:#555;font-weight:500;margin-bottom:8px;">📌 نوع الحالة</div>
+    <div class="type-grid">
+      <button class="type-btn" id="type-accident" onclick="selectType('حادث مروري', this)">
+        <span class="tb-icon">🚗</span>حادث مروري
+      </button>
+      <button class="type-btn" id="type-work" onclick="selectType('منطقة عمل', this)">
+        <span class="tb-icon">🚧</span>منطقة عمل
+      </button>
+      <button class="type-btn" id="type-parking" onclick="selectType('وقوف خاطئ', this)">
+        <span class="tb-icon">🚫</span>وقوف خاطئ
+      </button>
+      <button class="type-btn" id="type-other" onclick="selectType('other', this)">
+        <span class="tb-icon">✏️</span>أخرى
+      </button>
     </div>
     <div class="custom-type" id="customTypeRow">
       <input type="text" id="customType" placeholder="اكتب نوع الحالة...">
@@ -263,8 +284,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GEMINI_KEY = 'AQ.Ab8RN6L2KGUy9EyZPqrOXw7Dg2PbZhYpSXefLNCAg-tPg6VcCA';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const ANTHROPIC_KEY = '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';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 let b64 = null, b64Type = 'image/jpeg', injury = '', gpsLat = null, gpsLng = null;
 let deferredPrompt = null;
@@ -289,14 +310,17 @@ const loading       = document.getElementById('loading');
 const resultSection = document.getElementById('resultSection');
 const filenameBadge = document.getElementById('filenameBadge');
 
-function onTypeChange() {
-  document.getElementById('customTypeRow').style.display =
-    document.getElementById('caseType').value === 'other' ? 'block' : 'none';
+let selectedType = '';
+function selectType(val, btn) {
+  selectedType = val;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('customTypeRow').style.display = val === 'other' ? 'block' : 'none';
+  if (val !== 'other') document.getElementById('customType').value = '';
 }
 function getCaseType() {
-  const sel = document.getElementById('caseType').value;
-  if (sel === 'other') return document.getElementById('customType').value.trim() || 'أخرى';
-  return sel;
+  if (selectedType === 'other') return document.getElementById('customType').value.trim() || 'أخرى';
+  return selectedType;
 }
 function updateCallBtn(phone) {
   const btn = document.getElementById('callBtn');
@@ -339,21 +363,29 @@ btnScan.addEventListener('click', async () => {
 لا تكتب أي شيء خارج JSON.`;
 
   try {
-    const res = await fetch(GEMINI_URL, {
+    const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: b64Type, data: b64 } },
-            { text: prompt }
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: b64Type, data: b64 } },
+            { type: 'text', text: prompt }
           ]
         }]
       })
     });
 
     const data = await res.json();
-    let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let raw = data.content?.[0]?.text || '';
     raw = raw.trim().replace(/```json|```/g,'').trim();
     const json = JSON.parse(raw);
 
@@ -428,7 +460,8 @@ function resetAll() {
   btnScan.style.display = 'none';
   resultSection.style.display = 'none';
   loading.style.display = 'none';
-  document.getElementById('caseType').value = '';
+  selectedType = '';
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('customType').value = '';
   document.getElementById('customTypeRow').style.display = 'none';
   document.getElementById('mapLinkRow').style.display = 'none';
