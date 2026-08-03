@@ -405,15 +405,15 @@ btnScan.addEventListener('click', async () => {
   btnScan.style.display = 'none';
   loading.style.display = 'block';
 
-  const prompt = `هذه صورة بلاغ رسمي. استخرج المعلومات التالية وأجب بـ JSON فقط بدون أي نص خارجه:
+  const prompt = `صورة بلاغ. أجب بـ JSON فقط:
 {"name":"","phone":"","location":"","lat":"","lng":"","summary":""}
-- name: الاسم الكامل للشخص
-- phone: رقم الهاتف أو الجوال
-- location: الموقع أو العنوان النصي كما هو مكتوب
-- lat: خط العرض رقم فقط إذا وجد وإلا فارغ
-- lng: خط الطول رقم فقط إذا وجد وإلا فارغ
-- summary: ملخص الحادث بجملة أو جملتين
-لا تكتب أي شيء خارج JSON.`;
+- name: اسم الشخص
+- phone: رقم الجوال
+- location: الموقع كما هو مكتوب
+- lat: خط العرض (رقم فقط أو فارغ)
+- lng: خط الطول (رقم فقط أو فارغ)
+- summary: ملخص الحادث بجملة أو جملتين. احذف أي ذكر لـ"تم إنشاء البلاغ على منصة CID" من الملخص.
+JSON فقط بلا نص إضافي.`;
 
   try {
     const res = await fetch(API_URL, {
@@ -426,7 +426,7 @@ btnScan.addEventListener('click', async () => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 500,
         messages: [{
           role: 'user',
           content: [
