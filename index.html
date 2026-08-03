@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1a1a18">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="CID Reader">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1a1a18">
 <title>قارئ بلاغات CID</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -20,30 +20,37 @@
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
   .app { max-width: 440px; margin: 0 auto; }
+
   .header { text-align: center; padding: 1.5rem 0 1rem; }
   .header h1 { font-size: 20px; font-weight: 600; }
   .header p { font-size: 13px; color: #666; margin-top: 4px; }
+
   .notice {
     background: #fef9ec; border: 1px solid #f0c040;
     border-radius: 10px; padding: 10px 12px;
     font-size: 12px; color: #8a6800; margin-bottom: 1rem;
     display: flex; align-items: center; gap: 8px;
   }
+
   .card {
     background: #fff; border-radius: 14px;
     border: 1px solid #e0e0dc; padding: 1.2rem;
     margin-bottom: 1rem;
   }
+
   .field-row {
     display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;
   }
   .field-row label { font-size: 14px; color: #555; white-space: nowrap; font-weight: 500; min-width: 100px; }
-  .field-row input, .field-row select {
+  .field-row input {
     flex: 1; padding: 10px 14px; font-size: 15px; font-weight: 600;
     border: 1.5px solid #ccc; border-radius: 10px;
     background: #fff; color: #1a1a18; outline: none; font-family: inherit;
   }
-  .field-row input:focus, .field-row select:focus { border-color: #3b82f6; }
+  .field-row input:focus { border-color: #3b82f6; }
+
+  /* نوع الحالة - أزرار */
+  .type-label { font-size: 13px; color: #555; font-weight: 500; margin-bottom: 8px; }
   .type-grid {
     display: grid; grid-template-columns: 1fr 1fr;
     gap: 8px; margin-bottom: 1rem;
@@ -57,20 +64,22 @@
   }
   .type-btn .tb-icon { font-size: 26px; display: block; margin-bottom: 4px; }
   .type-btn:active { transform: scale(0.97); }
-  .type-btn.active {
-    border-color: #3b82f6; background: #eff6ff; color: #1d4ed8;
-  }
+  .type-btn.active { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+
   .custom-type { display: none; margin-bottom: 1rem; }
   .custom-type input {
     width: 100%; padding: 10px 14px; font-size: 14px;
     border: 1.5px solid #ccc; border-radius: 10px;
     background: #fff; color: #1a1a18; outline: none; font-family: inherit;
   }
+  .custom-type input:focus { border-color: #3b82f6; }
+
   .upload-zone {
     border: 2px dashed #bbb; border-radius: 14px;
     padding: 2rem 1rem; text-align: center;
     background: #fafaf8; cursor: pointer;
     margin-bottom: 1rem; position: relative; overflow: hidden;
+    transition: border-color 0.2s, background 0.2s;
   }
   .upload-zone:active { border-color: #3b82f6; background: #eff6ff; }
   .upload-zone .icon { font-size: 44px; margin-bottom: 8px; }
@@ -80,17 +89,21 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     opacity: 0; cursor: pointer; z-index: 10;
   }
+
   .filename-badge {
     display: none; background: #eff6ff; border: 1px solid #bfdbfe;
     border-radius: 8px; padding: 8px 12px; font-size: 13px;
     color: #1d4ed8; margin-bottom: 1rem; text-align: center;
   }
+
   .btn-scan {
     width: 100%; padding: 13px; border: none; border-radius: 10px;
     font-size: 15px; font-weight: 600; cursor: pointer;
     font-family: inherit; background: #3b82f6; color: #fff;
     display: none; align-items: center; justify-content: center; gap: 8px;
   }
+  .btn-scan:active { background: #2563eb; }
+
   .loading { display: none; text-align: center; padding: 1.5rem; }
   .spinner {
     width: 32px; height: 32px; border: 3px solid #e0e0dc;
@@ -98,8 +111,13 @@
     animation: spin 0.8s linear infinite; margin: 0 auto 10px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
   .result-section { display: none; }
-  .report-table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0dc; margin-bottom: 1rem; }
+
+  .report-table {
+    width: 100%; border-collapse: collapse; border-radius: 12px;
+    overflow: hidden; border: 1px solid #e0e0dc; margin-bottom: 1rem;
+  }
   .report-table tr { border-bottom: 1px solid #e8e8e4; }
   .report-table tr:last-child { border-bottom: none; }
   .report-table th {
@@ -113,6 +131,7 @@
     font-size: 14px; color: #1a1a18; font-family: inherit;
     resize: none; line-height: 1.6;
   }
+
   .call-btn {
     display: none; margin-top: 6px;
     align-items: center; gap: 6px;
@@ -121,6 +140,8 @@
     font-size: 13px; font-weight: 600; color: #15803d;
     text-decoration: none; width: fit-content;
   }
+  .call-btn:active { background: #dcfce7; }
+
   .map-link-row { display: none; margin-top: 6px; }
   .map-link {
     display: inline-flex; align-items: center; gap: 5px;
@@ -128,6 +149,7 @@
     border-radius: 8px; padding: 6px 12px;
     font-size: 13px; font-weight: 600; color: #1d4ed8; text-decoration: none;
   }
+
   .injury-label { font-size: 14px; font-weight: 500; color: #444; margin-bottom: 8px; }
   .injury-btns { display: flex; gap: 10px; margin-bottom: 1rem; }
   .inj-btn {
@@ -137,6 +159,7 @@
   }
   .inj-btn.yes.active { background: #fef2f2; border-color: #f87171; color: #b91c1c; }
   .inj-btn.no.active  { background: #f0fdf4; border-color: #4ade80; color: #15803d; }
+
   .actions { display: flex; gap: 8px; }
   .btn-copy {
     flex: 1; padding: 13px; background: #f4f4f2;
@@ -144,48 +167,34 @@
     font-size: 14px; font-weight: 600; cursor: pointer;
     font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px;
   }
+  .btn-copy:active { background: #e8e8e4; }
   .btn-wa {
     flex: 1; padding: 13px; background: #25D366; color: #fff;
     border: none; border-radius: 10px;
     font-size: 14px; font-weight: 600; cursor: pointer;
     font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px;
   }
+  .btn-wa:active { background: #1ebe5d; }
   .btn-new {
     padding: 13px 15px; background: #f4f4f2;
     border: 1.5px solid #ccc; border-radius: 10px;
     font-size: 18px; cursor: pointer;
   }
+
   .toast {
     position: fixed; bottom: calc(1.5rem + env(safe-area-inset-bottom));
     left: 50%; transform: translateX(-50%);
     background: #1a1a18; color: #fff;
-    padding: 10px 22px; border-radius: 99px; font-size: 14px;
+    padding: 10px 22px; border-radius: 99px; font-size: 13px;
     opacity: 0; transition: opacity 0.3s; pointer-events: none;
     white-space: nowrap; z-index: 999; font-family: inherit;
+    max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
   }
   .toast.show { opacity: 1; }
-  .install-banner {
-    display: none; background: #1a1a18; color: #fff;
-    border-radius: 12px; padding: 12px 16px;
-    margin-bottom: 1rem; align-items: center; gap: 10px; font-size: 13px;
-  }
-  .install-banner span { flex: 1; }
-  .install-banner button {
-    background: #3b82f6; color: #fff; border: none;
-    border-radius: 8px; padding: 7px 14px;
-    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
-  }
 </style>
 </head>
 <body>
 <div class="app">
-
-  <div class="install-banner" id="installBanner">
-    <span>📲 ثبّت التطبيق على شاشتك الرئيسية</span>
-    <button id="installBtn">تثبيت</button>
-    <button onclick="document.getElementById('installBanner').style.display='none'"
-      style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
-  </div>
 
   <div class="header">
     <h1>📋 قارئ بلاغات CID</h1>
@@ -197,42 +206,50 @@
   </div>
 
   <div class="card">
+
     <div class="field-row">
       <label>🚔 رمز الدورية</label>
       <input type="text" id="patrolCode" placeholder="مثال: د-١٢٣">
     </div>
-    <div style="font-size:13px;color:#555;font-weight:500;margin-bottom:8px;">📌 نوع الحالة</div>
+
+    <div class="type-label">📌 نوع الحالة</div>
     <div class="type-grid">
-      <button class="type-btn" id="type-accident" onclick="selectType('حادث مروري', this)">
+      <button class="type-btn" onclick="selectType('حادث مروري', this)">
         <span class="tb-icon">🚗</span>حادث مروري
       </button>
-      <button class="type-btn" id="type-work" onclick="selectType('منطقة عمل', this)">
+      <button class="type-btn" onclick="selectType('منطقة عمل', this)">
         <span class="tb-icon">🚧</span>منطقة عمل
       </button>
-      <button class="type-btn" id="type-parking" onclick="selectType('وقوف خاطئ', this)">
+      <button class="type-btn" onclick="selectType('وقوف خاطئ', this)">
         <span class="tb-icon">🚫</span>وقوف خاطئ
       </button>
-      <button class="type-btn" id="type-other" onclick="selectType('other', this)">
+      <button class="type-btn" onclick="selectType('other', this)">
         <span class="tb-icon">✏️</span>أخرى
       </button>
     </div>
+
     <div class="custom-type" id="customTypeRow">
       <input type="text" id="customType" placeholder="اكتب نوع الحالة...">
     </div>
+
     <div class="upload-zone">
       <div class="icon">📷</div>
       <p>اضغط هنا لالتقاط صورة أو رفعها</p>
-      <span>الصورة تُحذف بعد القراءة مباشرة</span>
+      <span>الصورة تُضغط وتُحذف بعد القراءة مباشرة</span>
       <input type="file" accept="image/*" id="fileInput">
     </div>
+
     <div class="filename-badge" id="filenameBadge"></div>
+
     <button class="btn-scan" id="btnScan" style="display:none;flex-direction:row;">
       ✨ استخراج المعلومات
     </button>
+
     <div class="loading" id="loading">
       <div class="spinner"></div>
       <p style="font-size:14px;color:#666;">جاري قراءة البلاغ...</p>
     </div>
+
   </div>
 
   <div class="result-section" id="resultSection">
@@ -284,25 +301,10 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const ANTHROPIC_KEY = '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';
-const ANTHROPIC_URL = 'https://hidden-base-56d1.majed132010.workers.dev';
+const API_KEY = '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';
+const API_URL = 'https://api.anthropic.com/v1/messages';
 
-let b64 = null, b64Type = 'image/jpeg', injury = '', gpsLat = null, gpsLng = null;
-let deferredPrompt = null;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); deferredPrompt = e;
-  document.getElementById('installBanner').style.display = 'flex';
-});
-document.getElementById('installBtn').addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  document.getElementById('installBanner').style.display = 'none';
-  showToast('✓ تم التثبيت!');
-});
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+let b64 = null, injury = '', gpsLat = null, gpsLng = null, selectedType = '';
 
 const fileInput     = document.getElementById('fileInput');
 const btnScan       = document.getElementById('btnScan');
@@ -310,7 +312,6 @@ const loading       = document.getElementById('loading');
 const resultSection = document.getElementById('resultSection');
 const filenameBadge = document.getElementById('filenameBadge');
 
-let selectedType = '';
 function selectType(val, btn) {
   selectedType = val;
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
@@ -318,10 +319,12 @@ function selectType(val, btn) {
   document.getElementById('customTypeRow').style.display = val === 'other' ? 'block' : 'none';
   if (val !== 'other') document.getElementById('customType').value = '';
 }
+
 function getCaseType() {
   if (selectedType === 'other') return document.getElementById('customType').value.trim() || 'أخرى';
   return selectedType;
 }
+
 function updateCallBtn(phone) {
   const btn = document.getElementById('callBtn');
   const clean = phone.trim();
@@ -329,20 +332,47 @@ function updateCallBtn(phone) {
   btn.style.display = clean ? 'inline-flex' : 'none';
 }
 
+// قراءة الصورة وضغطها
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  b64Type = file.type || 'image/jpeg';
+
+  // أظهر الزر فوراً كـ fallback
+  filenameBadge.textContent = '✓ ' + file.name;
+  filenameBadge.style.display = 'block';
+
   const reader = new FileReader();
   reader.onload = (ev) => {
-    b64 = ev.target.result.split(',')[1];
-    filenameBadge.textContent = '✓ ' + file.name;
-    filenameBadge.style.display = 'block';
-    btnScan.style.display = 'flex';
-    resultSection.style.display = 'none';
-    injury = ''; gpsLat = null; gpsLng = null;
-    document.getElementById('btnYes').classList.remove('active');
-    document.getElementById('btnNo').classList.remove('active');
+    const dataUrl = ev.target.result;
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        const maxSize = 1400;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        b64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+      } catch(err) {
+        // إذا فشل الضغط استخدم الصورة الأصلية
+        b64 = dataUrl.split(',')[1];
+      }
+      btnScan.style.display = 'flex';
+      resultSection.style.display = 'none';
+      injury = ''; gpsLat = null; gpsLng = null;
+      document.getElementById('btnYes').classList.remove('active');
+      document.getElementById('btnNo').classList.remove('active');
+    };
+    img.onerror = () => {
+      // fallback: استخدم الصورة الأصلية بدون ضغط
+      b64 = dataUrl.split(',')[1];
+      btnScan.style.display = 'flex';
+    };
+    img.src = dataUrl;
   };
   reader.readAsDataURL(file);
 });
@@ -363,12 +393,13 @@ btnScan.addEventListener('click', async () => {
 لا تكتب أي شيء خارج JSON.`;
 
   try {
-    const res = await fetch(ANTHROPIC_URL, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01'
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
@@ -376,7 +407,7 @@ btnScan.addEventListener('click', async () => {
         messages: [{
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: b64Type, data: b64 } },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
             { type: 'text', text: prompt }
           ]
         }]
@@ -384,15 +415,14 @@ btnScan.addEventListener('click', async () => {
     });
 
     const data = await res.json();
-    let raw = data.content?.[0]?.text || '';
-    raw = raw.trim().replace(/```json|```/g,'').trim();
+    if (data.error) throw new Error(data.error.message);
+    let raw = data.content[0].text.trim().replace(/```json|```/g,'').trim();
     const json = JSON.parse(raw);
 
     document.getElementById('fName').value     = json.name     || '';
     document.getElementById('fPhone').value    = json.phone    || '';
     document.getElementById('fLocation').value = json.location || '';
     document.getElementById('fSummary').value  = json.summary  || '';
-
     updateCallBtn(json.phone || '');
 
     if (json.lat && json.lng) {
@@ -407,8 +437,7 @@ btnScan.addEventListener('click', async () => {
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
-    showToast('خطأ في القراءة — حاول مرة أخرى');
-    console.error(err);
+    showToast('خطأ: ' + (err.message || '').substring(0, 60));
     btnScan.style.display = 'flex';
   } finally {
     loading.style.display = 'none';
@@ -445,21 +474,24 @@ function buildMsg() {
 }
 
 function copyMsg() {
+  if (!injury) { showToast('⚠️ حدد أولاً: هل يوجد إصابات؟'); return; }
   navigator.clipboard.writeText(buildMsg())
     .then(() => showToast('✓ تم النسخ'))
     .catch(() => showToast('تعذّر النسخ'));
 }
+
 function sendWa() {
+  if (!injury) { showToast('⚠️ حدد أولاً: هل يوجد إصابات؟'); return; }
   window.open('https://wa.me/?text=' + encodeURIComponent(buildMsg()), '_blank');
 }
+
 function resetAll() {
-  b64 = null; injury = ''; gpsLat = null; gpsLng = null;
+  b64 = null; injury = ''; gpsLat = null; gpsLng = null; selectedType = '';
   fileInput.value = '';
   filenameBadge.style.display = 'none';
   btnScan.style.display = 'none';
   resultSection.style.display = 'none';
   loading.style.display = 'none';
-  selectedType = '';
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('customType').value = '';
   document.getElementById('customTypeRow').style.display = 'none';
@@ -470,10 +502,15 @@ function resetAll() {
   document.getElementById('btnNo').classList.remove('active');
   showToast('جاهز لبلاغ جديد');
 }
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
 }
 </script>
 </body>
