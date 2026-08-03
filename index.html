@@ -2,17 +2,17 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CID Reader">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#1a1a18">
 <title>قارئ بلاغات CID</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: system-ui, -apple-system, sans-serif;
     background: #f4f4f2; color: #1a1a18;
@@ -49,7 +49,6 @@
   }
   .field-row input:focus { border-color: #3b82f6; }
 
-  /* نوع الحالة - أزرار */
   .type-label { font-size: 13px; color: #555; font-weight: 500; margin-bottom: 8px; }
   .type-grid {
     display: grid; grid-template-columns: 1fr 1fr;
@@ -72,22 +71,33 @@
     border: 1.5px solid #ccc; border-radius: 10px;
     background: #fff; color: #1a1a18; outline: none; font-family: inherit;
   }
-  .custom-type input:focus { border-color: #3b82f6; }
 
-  .upload-zone {
-    border: 2px dashed #bbb; border-radius: 14px;
-    padding: 2rem 1rem; text-align: center;
-    background: #fafaf8; cursor: pointer;
-    margin-bottom: 1rem; position: relative; overflow: hidden;
-    transition: border-color 0.2s, background 0.2s;
+  .camera-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-bottom: 1rem;
   }
-  .upload-zone:active { border-color: #3b82f6; background: #eff6ff; }
-  .upload-zone .icon { font-size: 44px; margin-bottom: 8px; }
-  .upload-zone p { font-size: 15px; color: #444; font-weight: 500; }
-  .upload-zone span { font-size: 12px; color: #888; display: block; margin-top: 4px; }
-  .upload-zone input[type="file"] {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    opacity: 0; cursor: pointer; z-index: 10;
+  .cam-btn {
+    padding: 16px 8px; border: 2px dashed #bbb;
+    border-radius: 14px; background: #fafaf8;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit; text-align: center;
+    color: #444; transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .cam-btn:active { border-color: #3b82f6; background: #eff6ff; transform: scale(0.97); }
+  .cam-btn .icon { font-size: 32px; }
+  .cam-btn input[type="file"] { display: none; }
+
+  .preview-box {
+    display: none; margin-bottom: 1rem;
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid #e0e0dc; position: relative;
+  }
+  .preview-box img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .preview-size {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.6); color: #fff;
+    font-size: 11px; padding: 4px 10px; text-align: center;
   }
 
   .filename-badge {
@@ -181,23 +191,6 @@
     font-size: 18px; cursor: pointer;
   }
 
-  .install-banner {
-    background: #1a1a18; color: #fff;
-    border-radius: 12px; padding: 12px 16px;
-    margin-bottom: 1rem; align-items: center; gap: 10px;
-    font-size: 13px; display: none;
-  }
-  .install-banner span { flex: 1; }
-  .install-banner .ibtn {
-    background: #3b82f6; color: #fff; border: none;
-    border-radius: 8px; padding: 8px 14px;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    font-family: inherit; white-space: nowrap;
-  }
-  .install-banner .iclose {
-    background: transparent; border: none; color: #fff;
-    font-size: 18px; cursor: pointer; padding: 0 4px;
-  }
   .toast {
     position: fixed; bottom: calc(1.5rem + env(safe-area-inset-bottom));
     left: 50%; transform: translateX(-50%);
@@ -216,12 +209,6 @@
   <div class="header">
     <h1>📋 قارئ بلاغات CID</h1>
     <p>صوّر البلاغ — يستخرج المعلومات ويرسلها واتساب</p>
-  </div>
-
-  <div class="install-banner" id="installBanner">
-    <span>📲 ثبّت التطبيق على شاشتك الرئيسية</span>
-    <button class="ibtn" id="installBtn">تثبيت</button>
-    <button class="iclose" onclick="document.getElementById('installBanner').style.display='none'">✕</button>
   </div>
 
   <div class="notice">
@@ -255,11 +242,23 @@
       <input type="text" id="customType" placeholder="اكتب نوع الحالة...">
     </div>
 
-    <div class="upload-zone">
-      <div class="icon">📷</div>
-      <p>اضغط هنا لالتقاط صورة أو رفعها</p>
-      <span>الصورة تُضغط وتُحذف بعد القراءة مباشرة</span>
-      <input type="file" accept="image/*" id="fileInput">
+    <div class="type-label">📷 مصدر الصورة</div>
+    <div class="camera-grid">
+      <label class="cam-btn">
+        <span class="icon">📷</span>
+        كاميرا
+        <input type="file" accept="image/*" capture="environment" onchange="handleFile(this)">
+      </label>
+      <label class="cam-btn">
+        <span class="icon">🖼️</span>
+        من الاستديو
+        <input type="file" accept="image/*" onchange="handleFile(this)">
+      </label>
+    </div>
+
+    <div class="preview-box" id="previewBox">
+      <img id="previewImg" src="" alt="معاينة">
+      <div class="preview-size" id="previewSize"></div>
     </div>
 
     <div class="filename-badge" id="filenameBadge"></div>
@@ -329,11 +328,13 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 
 let b64 = null, injury = '', gpsLat = null, gpsLng = null, selectedType = '';
 
-const fileInput     = document.getElementById('fileInput');
 const btnScan       = document.getElementById('btnScan');
 const loading       = document.getElementById('loading');
 const resultSection = document.getElementById('resultSection');
 const filenameBadge = document.getElementById('filenameBadge');
+const previewBox    = document.getElementById('previewBox');
+const previewImg    = document.getElementById('previewImg');
+const previewSize   = document.getElementById('previewSize');
 
 function selectType(val, btn) {
   selectedType = val;
@@ -355,35 +356,45 @@ function updateCallBtn(phone) {
   btn.style.display = clean ? 'inline-flex' : 'none';
 }
 
-// قراءة الصورة وضغطها
-fileInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
+function formatBytes(bytes) {
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function handleFile(input) {
+  const file = input.files[0];
   if (!file) return;
 
-  // أظهر الزر فوراً كـ fallback
   filenameBadge.textContent = '✓ ' + file.name;
   filenameBadge.style.display = 'block';
 
   const reader = new FileReader();
   reader.onload = (ev) => {
     const dataUrl = ev.target.result;
+    previewImg.src = dataUrl;
+    previewBox.style.display = 'block';
+
     const img = new Image();
     img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        let w = img.width, h = img.height;
-        const maxSize = 1400;
-        if (w > maxSize || h > maxSize) {
-          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-          else { w = Math.round(w * maxSize / h); h = maxSize; }
-        }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        b64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-      } catch(err) {
-        // إذا فشل الضغط استخدم الصورة الأصلية
-        b64 = dataUrl.split(',')[1];
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const maxSize = 800;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
       }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      b64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+
+      const compressedSize = Math.round((b64.length * 3) / 4);
+      previewSize.textContent = 'بعد الضغط: ' + formatBytes(compressedSize);
+
       btnScan.style.display = 'flex';
       resultSection.style.display = 'none';
       injury = ''; gpsLat = null; gpsLng = null;
@@ -391,14 +402,14 @@ fileInput.addEventListener('change', (e) => {
       document.getElementById('btnNo').classList.remove('active');
     };
     img.onerror = () => {
-      // fallback: استخدم الصورة الأصلية بدون ضغط
       b64 = dataUrl.split(',')[1];
       btnScan.style.display = 'flex';
     };
     img.src = dataUrl;
   };
   reader.readAsDataURL(file);
-});
+  input.value = '';
+}
 
 btnScan.addEventListener('click', async () => {
   if (!b64) return;
@@ -410,10 +421,10 @@ btnScan.addEventListener('click', async () => {
 - name: اسم الشخص
 - phone: رقم الجوال
 - location: الموقع كما هو مكتوب
-- lat: خط العرض (رقم فقط أو فارغ)
-- lng: خط الطول (رقم فقط أو فارغ)
-- summary: ملخص الحادث بجملة أو جملتين. احذف أي ذكر لـ"تم إنشاء البلاغ على منصة CID" من الملخص.
-JSON فقط بلا نص إضافي.`;
+- lat: خط العرض رقم فقط أو فارغ
+- lng: خط الطول رقم فقط أو فارغ
+- summary: ملخص الحادث بجملة أو جملتين بدون ذكر منصة CID
+JSON فقط.`;
 
   try {
     const res = await fetch(API_URL, {
@@ -480,19 +491,24 @@ function buildMsg() {
   const phone    = document.getElementById('fPhone').value.trim()     || '—';
   const location = document.getElementById('fLocation').value.trim()  || '—';
   const summary  = document.getElementById('fSummary').value.trim()   || '—';
-  const inj      = injury === 'yes' ? 'نعم 🔴' : injury === 'no' ? 'لا ✅' : '—';
+  const inj      = injury === 'yes' ? 'نعم 🔴' : 'لا ✅';
   const mapLine  = (gpsLat && gpsLng) ? `\n🗺️ https://www.google.com/maps?q=${gpsLat},${gpsLng}` : '';
+  const line     = '➖➖➖➖➖➖➖➖➖➖';
 
   return (
-    `🚔 *الدورية: ${patrol}*\n` +
-    (caseType ? `📌 *النوع: ${caseType}*\n` : '') +
-    `\n👤 الاسم:           ${name}\n` +
-    `📱 الجوال:          ${phone}\n` +
-    `📍 الموقع:          ${location}${mapLine}\n` +
-    `📝 ملخص الحادث:    ${summary}\n\n` +
-    `🩺 *هل يوجد إصابات؟* ${inj}\n\n` +
-    `—————————————————\n` +
-    `⚠️ *تنبيه:* الموقع في هذه الرسالة يمثل آخر نقطة قام المخبر بالاتصال منها. لا يعتمد عليها`
+    `${line}\n` +
+    `🚔 *الدورية:* ${patrol}\n` +
+    (caseType ? `📌 *النوع:* ${caseType}\n` : '') +
+    `${line}\n` +
+    `👤 *الاسم:* ${name}\n` +
+    `📱 *الجوال:* ${phone}\n` +
+    `📍 *الموقع:* ${location}${mapLine}\n` +
+    `${line}\n` +
+    `📝 *ملخص الحادث:*\n${summary}\n` +
+    `${line}\n` +
+    `🩺 *هل يوجد إصابات؟* ${inj}\n` +
+    `${line}\n` +
+    `⚠️ *تنبيه:* الموقع يمثل آخر نقطة اتصال المخبر. لا يُعتمد عليها`
   );
 }
 
@@ -510,7 +526,9 @@ function sendWa() {
 
 function resetAll() {
   b64 = null; injury = ''; gpsLat = null; gpsLng = null; selectedType = '';
-  fileInput.value = '';
+  previewImg.src = '';
+  previewBox.style.display = 'none';
+  previewSize.textContent = '';
   filenameBadge.style.display = 'none';
   btnScan.style.display = 'none';
   resultSection.style.display = 'none';
@@ -532,33 +550,8 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// PWA Install
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  document.getElementById('installBanner').style.display = 'flex';
-});
-window.addEventListener('appinstalled', () => {
-  document.getElementById('installBanner').style.display = 'none';
-  showToast('✓ تم تثبيت التطبيق!');
-});
-document.getElementById('installBtn').addEventListener('click', async () => {
-  if (!deferredPrompt) {
-    showToast('افتح القائمة ← Add to Home Screen');
-    return;
-  }
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  document.getElementById('installBanner').style.display = 'none';
-  if (outcome === 'accepted') showToast('✓ تم التثبيت!');
-});
-
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(reg => {
-    console.log('SW registered:', reg.scope);
-  }).catch(err => console.log('SW error:', err));
+  navigator.serviceWorker.register('sw.js');
 }
 </script>
 </body>
