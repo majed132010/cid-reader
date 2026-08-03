@@ -1,13 +1,12 @@
-const CACHE = 'cid-v3';
-const FILES = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'cid-v4';
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => {
-      return Promise.allSettled(FILES.map(f => c.add(f).catch(() => {})));
-    })
-  );
   self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then(c => 
+      c.addAll(['/', '/index.html']).catch(() => {})
+    )
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -20,7 +19,8 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request).catch(() => caches.match(e.request))
   );
 });
