@@ -398,21 +398,21 @@ btnScan.addEventListener('click', async () => {
   try {
     if (!b64) throw new Error('لم يتم اختيار صورة');
 
-    // الخطوة 1: Google Vision يقرأ النص
+    // الخطوة 1: Google Vision عبر الـ Worker
     loadingStep.textContent = 'جاري قراءة النص من الصورة...';
-    const visionRes = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    const visionRes = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service: 'vision',
+        payload: {
           requests: [{
             image: { content: b64 },
             features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
           }]
-        })
-      }
-    );
+        }
+      })
+    });
     const visionData = await visionRes.json();
     if (visionData.error) throw new Error(visionData.error.message);
     const ocrText = visionData.responses?.[0]?.fullTextAnnotation?.text || '';
@@ -438,10 +438,13 @@ ${ocrText.substring(0, 3000)}`;
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 400,
-        temperature: 0
+        service: 'groq',
+        payload: {
+          model: GROQ_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 400,
+          temperature: 0
+        }
       })
     });
 
