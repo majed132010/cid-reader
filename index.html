@@ -276,6 +276,8 @@
 
 <script>
 const PROXY_URL = 'https://hidden-base-56d1.majed132010.workers.dev';
+const VISION_KEY = 'AIzaSyCOgVKOl-3DxmbW0biStTCUw-B04KHUUnc';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 let b64 = null, imageEl = null, gpsLat = null, gpsLng = null, selectedType = '';
 
@@ -395,30 +397,49 @@ btnScan.addEventListener('click', async () => {
 
   try {
     if (!b64) throw new Error('لم يتم اختيار صورة');
-    loadingStep.textContent = 'جاري استخراج المعلومات...';
 
-    const prompt = `صورة نظام بلاغات CID. استخرج هذه الحقول وأجب بـ JSON فقط بلا أي نص خارجه:
+    // الخطوة 1: Google Vision يقرأ النص
+    loadingStep.textContent = 'جاري قراءة النص من الصورة...';
+    const visionRes = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: b64 },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
+          }]
+        })
+      }
+    );
+    const visionData = await visionRes.json();
+    if (visionData.error) throw new Error(visionData.error.message);
+    const ocrText = visionData.responses?.[0]?.fullTextAnnotation?.text || '';
+    if (!ocrText) throw new Error('لم يتم قراءة أي نص من الصورة');
+    b64 = null;
+
+    // الخطوة 2: Groq يصيغ المعلومات من النص
+    loadingStep.textContent = 'جاري استخراج المعلومات...';
+    const prompt = `النص التالي مستخرج من نظام بلاغات CID. استخرج هذه الحقول وأجب بـ JSON فقط:
 {"name":"","phone":"","location":"","lat":"","lng":"","summary":""}
-- name: حقل الاسم
-- phone: حقل الهاتف بصيغة 05XXXXXXXX
-- location: حقل التقاطعات (اسم الشوارع فقط بدون روابط)
-- lat: من LL( أعلى يمين الصورة — الرقم الثاني بعد الفاصلة
-- lng: من LL( — الرقم الأول قبل الفاصلة
-- summary: وصف الحادث والمركبة ولوحتها فقط. بدون: جنسية/Biometric/روابط/CID/موقع ظاهر
-JSON فقط.`;
+- name: الاسم
+- phone: رقم الهاتف بصيغة 05XXXXXXXX
+- location: التقاطعات (اسم الشوارع فقط، بدون روابط)
+- lat: خط العرض من LL( إن وجد (رقم عشري مثل 21.56)
+- lng: خط الطول من LL( إن وجد (رقم عشري مثل 39.12)
+- summary: وصف الحادث والمركبة ولوحتها فقط. احذف: جنسية/Biometric/روابط/CID/موقع ظاهر
+JSON فقط.
+
+النص:
+${ocrText.substring(0, 3000)}`;
 
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.2-90b-vision-preview',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } },
-            { type: 'text', text: prompt }
-          ]
-        }],
+        model: GROQ_MODEL,
+        messages: [{ role: 'user', content: prompt }],
         max_tokens: 400,
         temperature: 0
       })
@@ -429,7 +450,6 @@ JSON فقط.`;
     let raw = data.choices?.[0]?.message?.content || '';
     raw = raw.trim().replace(/```json|```/g, '').trim();
     const json = JSON.parse(raw);
-    b64 = null;
 
     document.getElementById('fName').value     = json.name     || '';
     document.getElementById('fPhone').value    = json.phone    || '';
