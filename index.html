@@ -275,8 +275,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GEMINI_KEY = 'AQ.Ab8RN6IRf5P8MXkGOmTMx991-rrX3NdZzQZGEvyhbpRc19GM-A';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const PROXY_URL = 'https://hidden-base-56d1.majed132010.workers.dev';
 
 let b64 = null, imageEl = null, gpsLat = null, gpsLng = null, selectedType = '';
 
@@ -390,7 +389,7 @@ function dmsToDecimal(str) {
 }
 
 btnScan.addEventListener('click', async () => {
-  if (!imageEl) return;
+  if (!b64) return;
   btnScan.style.display = 'none';
   loading.style.display = 'block';
 
@@ -408,7 +407,7 @@ btnScan.addEventListener('click', async () => {
 - summary: وصف الحادث والمركبة ولوحتها فقط. بدون: جنسية/Biometric/روابط/CID/موقع ظاهر
 JSON فقط.`;
 
-    const res = await fetch(GEMINI_URL, {
+    const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -451,7 +450,9 @@ JSON فقط.`;
     resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   } catch (err) {
-    showToast('خطأ: ' + (err.message || '').substring(0, 60));
+    const msg = err.message || JSON.stringify(err);
+    showToast('خطأ: ' + msg.substring(0, 80));
+    console.error('Full error:', err);
     btnScan.style.display = 'flex';
   } finally {
     loading.style.display = 'none';
