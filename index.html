@@ -100,9 +100,10 @@
   .spinner {
     width: 32px; height: 32px; border: 3px solid #e0e0dc;
     border-top-color: #3b82f6; border-radius: 50%;
-    animation: spin 0.8s linear infinite; margin: 0 auto 10px;
+    animation: spin 0.8s linear infinite; margin: 0 auto 8px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-step { font-size: 13px; color: #666; margin-top: 4px; }
   .result-section { display: none; }
   .report-table {
     width: 100%; border-collapse: collapse; border-radius: 12px;
@@ -178,7 +179,6 @@
   </div>
 
   <div class="card">
-
     <div class="field-row">
       <label>🚔 رمز الدورية</label>
       <input type="text" id="patrolCode" placeholder="مثال: د-١٢٣">
@@ -199,7 +199,6 @@
         <span class="tb-icon">✏️</span>أخرى
       </button>
     </div>
-
     <div class="custom-type" id="customTypeRow">
       <input type="text" id="customType" placeholder="اكتب نوع الحالة...">
     </div>
@@ -207,13 +206,11 @@
     <div class="type-label">📷 مصدر الصورة</div>
     <div class="camera-grid">
       <label class="cam-btn">
-        <span class="icon">📷</span>
-        كاميرا
+        <span class="icon">📷</span>كاميرا
         <input type="file" accept="image/*" capture="environment" onchange="handleFile(this)">
       </label>
       <label class="cam-btn">
-        <span class="icon">🖼️</span>
-        من الاستديو
+        <span class="icon">🖼️</span>من الاستديو
         <input type="file" accept="image/*" onchange="handleFile(this)">
       </label>
     </div>
@@ -222,7 +219,6 @@
       <img id="previewImg" src="" alt="معاينة">
       <div class="preview-size" id="previewSize"></div>
     </div>
-
     <div class="filename-badge" id="filenameBadge"></div>
 
     <button class="btn-scan" id="btnScan" style="display:none;flex-direction:row;">
@@ -231,9 +227,8 @@
 
     <div class="loading" id="loading">
       <div class="spinner"></div>
-      <p style="font-size:14px;color:#666;">جاري قراءة البلاغ...</p>
+      <p class="loading-step" id="loadingStep">جاري قراءة النص...</p>
     </div>
-
   </div>
 
   <div class="result-section" id="resultSection">
@@ -280,13 +275,14 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API_KEY = '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';
-const API_URL = 'https://api.anthropic.com/v1/messages';
+const GEMINI_KEY = 'AQ.Ab8RN6IRf5P8MXkGOmTMx991-rrX3NdZzQZGEvyhbpRc19GM-A';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
-let b64 = null, gpsLat = null, gpsLng = null, selectedType = '';
+let b64 = null, imageEl = null, gpsLat = null, gpsLng = null, selectedType = '';
 
 const btnScan       = document.getElementById('btnScan');
 const loading       = document.getElementById('loading');
+const loadingStep   = document.getElementById('loadingStep');
 const resultSection = document.getElementById('resultSection');
 const filenameBadge = document.getElementById('filenameBadge');
 const previewBox    = document.getElementById('previewBox');
@@ -304,38 +300,6 @@ function selectType(val, btn) {
 function getCaseType() {
   if (selectedType === 'other') return document.getElementById('customType').value.trim() || 'أخرى';
   return selectedType;
-}
-
-function cleanSummary(text) {
-  if (!text) return '';
-  const skipWords = [
-    'جنسية', 'Biometric', 'biometric', 'الموقع الظاهر',
-    'خط العرض', 'خط الطول', 'http', 'تم إنشاء البلاغ',
-    'منصة CID', 'مشغل', 'محافظة جدة', 'الاسم -'
-  ];
-  const lines = text.split('\n');
-  const filtered = lines.filter(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return false;
-    return !skipWords.some(w => trimmed.includes(w));
-  });
-  return filtered.join('\n').trim();
-}
-
-function dmsToDecimal(str) {
-  if (!str) return null;
-  str = str.toString().trim();
-  // Already decimal
-  if (/^\d+\.\d+$/.test(str)) return parseFloat(str);
-  // DMS format: 21:34:12.76 or 21:34:12
-  const parts = str.split(':');
-  if (parts.length === 3) {
-    const d = parseFloat(parts[0]);
-    const m = parseFloat(parts[1]);
-    const s = parseFloat(parts[2]);
-    return d + m/60 + s/3600;
-  }
-  return parseFloat(str) || null;
 }
 
 function updateCallBtn(phone) {
@@ -365,89 +329,103 @@ function handleFile(input) {
     previewImg.src = dataUrl;
     previewBox.style.display = 'block';
 
+    // ضغط الصورة
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       let w = img.width, h = img.height;
-      // أعلى جودة ممكنة بدون تغيير الحجم الأصلي
+      const maxSize = 1200;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
       canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
-      b64 = canvas.toDataURL('image/jpeg', 1.0).split(',')[1];
-      // إذا تجاوز 9MB نضغط قليلاً
-      if (b64.length > 12000000) {
-        const maxSize = 2000;
-        let w2 = w, h2 = h;
-        if (w2 > maxSize || h2 > maxSize) {
-          if (w2 > h2) { h2 = Math.round(h2 * maxSize / w2); w2 = maxSize; }
-          else { w2 = Math.round(w2 * maxSize / h2); h2 = maxSize; }
-        }
-        const c2 = document.createElement('canvas');
-        c2.width = w2; c2.height = h2;
-        c2.getContext('2d').drawImage(img, 0, 0, w2, h2);
-        b64 = c2.toDataURL('image/jpeg', 0.92).split(',')[1];
-      }
-
+      b64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
       const sz = Math.round((b64.length * 3) / 4);
       previewSize.textContent = 'بعد الضغط: ' + formatBytes(sz);
       btnScan.style.display = 'flex';
-      resultSection.style.display = 'none';
-      gpsLat = null; gpsLng = null;
     };
     img.onerror = () => { b64 = dataUrl.split(',')[1]; btnScan.style.display = 'flex'; };
     img.src = dataUrl;
+    resultSection.style.display = 'none';
+    gpsLat = null; gpsLng = null;
   };
   reader.readAsDataURL(file);
   input.value = '';
 }
 
+function cleanSummary(text) {
+  if (!text) return '';
+  const skipWords = [
+    'جنسية', 'Biometric', 'biometric', 'الموقع الظاهر',
+    'خط العرض', 'خط الطول', 'http', 'تم إنشاء البلاغ',
+    'منصة CID', 'مشغل', 'محافظة جدة', 'الاسم -',
+    'عائشة المسعري', 'تم ترحيل'
+  ];
+  const lines = text.split('\n');
+  const filtered = lines.filter(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    return !skipWords.some(w => trimmed.includes(w));
+  });
+  return filtered.join('\n').trim();
+}
+
+function dmsToDecimal(str) {
+  if (!str) return null;
+  str = str.toString().trim();
+  if (/^\d+\.\d+$/.test(str)) return parseFloat(str);
+  const parts = str.split(':');
+  if (parts.length === 3) {
+    const d = parseFloat(parts[0]);
+    const m = parseFloat(parts[1]);
+    const s = parseFloat(parts[2]);
+    return d + m/60 + s/3600;
+  }
+  return parseFloat(str) || null;
+}
+
 btnScan.addEventListener('click', async () => {
-  if (!b64) return;
+  if (!imageEl) return;
   btnScan.style.display = 'none';
   loading.style.display = 'block';
 
-  const prompt = `هذه صورة شاشة نظام بلاغات CID. استخرج فقط هذه الحقول حرفياً من الصورة — لا تضف ولا تخترع أي شيء.
-أجب بـ JSON فقط:
+  try {
+    if (!b64) throw new Error('لم يتم اختيار صورة');
+    loadingStep.textContent = 'جاري استخراج المعلومات...';
+
+    const prompt = `صورة نظام CID. JSON فقط:
 {"name":"","phone":"","location":"","lat":"","lng":"","summary":""}
-
-- name: قيمة حقل "الاسم" كما هي
-- phone: قيمة حقل "الهاتف" أو "الجوال" كما هي
-- location: قيمة حقل "التقاطعات" فقط (الاسم النصي للشارع أو المنطقة، لا تضع روابط)
-- lat: ابحث عن النص "LL(" في أعلى يمين الصورة — الرقم الثاني بعد الفاصلة هو خط العرض مثل "21:34:12.7602". انسخه كما هو. وإلا فارغ.
-- lng: نفس النص "LL(" — الرقم الأول قبل الفاصلة هو خط الطول مثل "39:12:42.7763". انسخه كما هو. وإلا فارغ.
-- phone: رقم الجوال أو الهاتف — أزل أي أصفار أو رموز زائدة في البداية، اكتبه بصيغة سعودية صحيحة تبدأ بـ 05 أو +966
-- summary: انسخ حرفياً كل ما هو مكتوب في مربع الملاحظات/الحالة الكبير — كل سطر بدون حذف أي شيء. إذا كان فارغاً اتركه فارغاً.
-
+- name: حقل الاسم
+- phone: حقل الهاتف بصيغة 05XXXXXXXX
+- location: حقل التقاطعات (اسم الشوارع فقط)
+- lat: من LL( أعلى يمين — الرقم الثاني بعد الفاصلة
+- lng: من LL( — الرقم الأول قبل الفاصلة
+- summary: وصف الحادث والمركبة ولوحتها فقط. بدون: جنسية/Biometric/روابط/CID/موقع ظاهر
 JSON فقط.`;
 
-  try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(GEMINI_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 600,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-            { type: 'text', text: prompt }
-          ]
-        }]
+        contents: [{ parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: b64 } },
+          { text: prompt }
+        ]}],
+        generationConfig: { maxOutputTokens: 400, temperature: 0 }
       })
     });
 
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    let raw = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    raw = raw.trim().replace(/```json|```/g, '').trim();
     const json = JSON.parse(raw);
+    b64 = null;
 
     document.getElementById('fName').value     = json.name     || '';
     document.getElementById('fPhone').value    = json.phone    || '';
@@ -460,27 +438,18 @@ JSON فقط.`;
       gpsLat = dmsToDecimal(json.lat);
       gpsLng = dmsToDecimal(json.lng);
       if (gpsLat > 30) { const tmp = gpsLat; gpsLat = gpsLng; gpsLng = tmp; }
-      if (gpsLat && gpsLng) {
-        document.getElementById('mapLink').href = `https://www.google.com/maps?q=${gpsLat},${gpsLng}`;
-        document.getElementById('mapLinkRow').style.display = 'block';
-      } else if (locText) {
-        // بحث بالنص إذا لم توجد إحداثيات
-        document.getElementById('mapLink').href = `https://www.google.com/maps/search/${encodeURIComponent(locText + ' جدة')}`;
-        document.getElementById('mapLinkRow').style.display = 'block';
-      } else {
-        document.getElementById('mapLinkRow').style.display = 'none';
-      }
+      document.getElementById('mapLink').href = `https://www.google.com/maps?q=${gpsLat},${gpsLng}`;
+      document.getElementById('mapLinkRow').style.display = 'block';
     } else if (locText) {
-      // بحث بالنص التقاطعات
       document.getElementById('mapLink').href = `https://www.google.com/maps/search/${encodeURIComponent(locText + ' جدة')}`;
       document.getElementById('mapLinkRow').style.display = 'block';
     } else {
       document.getElementById('mapLinkRow').style.display = 'none';
     }
 
-    b64 = null;
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   } catch (err) {
     showToast('خطأ: ' + (err.message || '').substring(0, 60));
     btnScan.style.display = 'flex';
@@ -525,7 +494,7 @@ function sendWa() {
 }
 
 function resetAll() {
-  b64 = null; gpsLat = null; gpsLng = null; selectedType = '';
+  b64 = null; imageEl = null; gpsLat = null; gpsLng = null; selectedType = '';
   previewImg.src = '';
   previewBox.style.display = 'none';
   previewSize.textContent = '';
@@ -548,9 +517,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>
